@@ -6,6 +6,8 @@ Created on Mon Dec  7 10:13:00 2015
 Pruebas de entrenamiento de una red neuronal con condiciones encontradas por un algoritmo 
 genético para un modelo de un reboiler
 """
+from __future__ import division, print_function
+
 from columna2 import reboiler
 from AGmultivar import AG
 from RN import RN, redimensionarPesos, dimensionarMatricesPesos
@@ -102,8 +104,8 @@ gauss= lambda x:10*np.exp(-(x-0.5)**2/(2*0.05**2))
 '''
 --------------
 '''
-n_perturbaciones=6 #6max
-n_pruebas=5
+n_perturbaciones=2 #6max
+n_pruebas=3
 '''
 ---------
 '''
@@ -194,7 +196,7 @@ pesos=list()
 pesos=[[],1000]
 print('\nComienzo de entrenamiento de la RN')
 
-for prueba in range(5):
+for prueba in range(n_pruebas):
     print('Prueba {}'.format(prueba+1))
     t1=time.time()
     Went,error=AGR.start()
