@@ -52,7 +52,7 @@ def perturbacion(pert=None,Lvar0=None,inter=(0,1)):
 gauss= lambda x:10*np.exp(-(x-0.5)**2/(2*0.05**2))    
     
 ################################################################
-with open('pruebasent2.txt','r') as f:
+with open('pruebasent.txt','r') as f:
     archivo=f.readlines()
     
 datos=list()
@@ -86,7 +86,7 @@ tonoA=(8.20417,1642.89,230.3);tonoB=(8.0713,1730.63,233.426);reb.tono=(tonoA,ton
 reb.kcb=0;reb.tdb=0;reb.Bref=9 ##Para fondos
 reb.kcq=0;reb.tdq=0 ##Para reboiler
 reb.Mref=30. ##Para la masa del interior del reboiler
-dt=0.01;tf=2;t=0
+dt=0.01;tf=3;t=0
 Ml,Bl,Vl,tl,Tl=None,None,None,None,None
 
 ## Condiciones iniciales:
@@ -105,8 +105,8 @@ np.random.seed(10)
 Lvar=np.random.random(int(tf/dt))+20
 
 #se añaden las perturbaciones
-Lvar=perturbacion(0,Lvar,(0,1))
-Lvar=perturbacion(1,Lvar,(1,2))
+#Lvar=perturbacion(0,Lvar,(0,1))
+Lvar=perturbacion(0,Lvar,(1,2))
 #Lvar=perturbacion(1,Lvar,(2,3))
 #Lvar=perturbacion(5,Lvar,(3,4))
 #Lvar=perturbacion(0,Lvar,(4,5))

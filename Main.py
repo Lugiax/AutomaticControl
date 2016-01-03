@@ -10,7 +10,7 @@ from __future__ import division, print_function
 
 from columna2 import reboiler
 from AGmultivar import AG
-from RN import RN, redimensionarPesos, dimensionarMatricesPesos
+from RN2 import RedNeuronal
 import numpy as np
 import time
 import matplotlib.pyplot as plt 
@@ -26,13 +26,13 @@ def norm(a,maxmin=None):
         a=np.array(a)
     return((a-minimo)/(maximo-minimo),(maximo,minimo))
 
-def perturbacion(pert=None,Lvar0=None):
+def perturbacion(pert=None,Lvar0=None,inter=(0,1)):
     Lvar=np.copy(Lvar0)
     #print('Perturbaciones de:')
     for i in range(1):
-        inicio=0
-        inter=tf-inicio
-        fin=int(inicio+inter)
+        inicio=inter[0]
+        intervalo=inter[1]-inter[0]
+        fin=int(inicio+intervalo)
         x=0
         #print(inicio,'-',fin,'min') 
         for j in range(int(inicio/dt),int(fin/dt)):
@@ -78,7 +78,7 @@ def f_obj(controladores):
     
 ##############################################################################################    
 AGS=AG()
-AGS.parametros(optim=0,Nind=20,Ngen=100)
+AGS.parametros(optim=0,Nind=25,Ngen=500)
 AGS.variables(comun=[4,0,4])
 
 reb=reboiler()
@@ -104,8 +104,8 @@ gauss= lambda x:10*np.exp(-(x-0.5)**2/(2*0.05**2))
 '''
 --------------
 '''
-n_perturbaciones=2 #6max
-n_pruebas=3
+n_perturbaciones=1 #6max
+n_pruebas=1
 '''
 ---------
 '''
@@ -172,48 +172,23 @@ print(y_ent)
 ''' 
 Entrenamiento de la red neuronal
 '''
-pImp=([3,3],50,500)
-datos=[x_ent,y_ent]
+pImp=([3,3],25,500)
+datos=(x_ent,y_ent)
 print('\nInicio de la red')
-red=RN()
-ar=[pImp[0][0],pImp[0][1]]
-red.parametros(arq=ar)
+red=RedNeuronal(estructura=pImp[0])
+pesos=red.Entrenar(datos_ent=datos,tipo_entrenamiento='AG',parametrosAG=(pImp[1],pImp[2])) 
 
-red.datosEnt(datos)
-
-est,nPesos=dimensionarMatricesPesos(red.arq)
-print('Arquitectura de red:',red.arq)
-AGR=AG()
-AGR.parametros(optim=0,Nind=pImp[1],Ngen=pImp[2])
-def fobjR(pesos,est):
-    W=redimensionarPesos(pesos,est)
-    y,error=red.FP(W=W)
-    return(error)
-
-AGR.variables(comun=[nPesos,-30,30])
-AGR.Fobj(fobjR,est)
-pesos=list()
-pesos=[[],1000]
-print('\nComienzo de entrenamiento de la RN')
-
-for prueba in range(n_pruebas):
-    print('Prueba {}'.format(prueba+1))
-    t1=time.time()
-    Went,error=AGR.start()
-    t2=time.time()
-    if error<pesos[1]:
-        pesos=[Went,error]
-    print('Tiempo por prueba:',(t2-t1)/60)
-    
 print('\nFinalización de entrenamiento y almacenamiento de pesos')
 
-with open('./pruebasent2.txt','a') as f:
+with open('./pruebasent.txt','a') as f:
     info='Datos de corrida:pImp['+str(pImp[0][0])+','+str(pImp[0][1])+','+str(pImp[1])+','+str(pImp[2])+str(dt)+']\n'
     f.write(info)
     p=''
     r=''
-    for i in pesos[0]:
-        p=p+str(i)+','
+    for i in pesos:
+        for k in i:
+            for l in k:
+                p=p+str(l)+','
     for j in range(len(tabla_resultados)):
         r=r+'['
         for i in tabla_resultados[j][1]:
