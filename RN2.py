@@ -8,16 +8,26 @@ Se creará la clase de Red Neuronal
 from __future__ import division
 import numpy as np
 import numpy.random as rnd
+from AGmultivar import AG
+
 
 class RedNeuronal(object):
-    def __init__(self,estructura,datos_de_entrenamiento=None,neurodos_entrada_salida=None,deb=False,bias=1,seed=None):
+    def __init__(self,estructura,datos_de_entrenamiento=None,neurodos_entrada_salida=None,deb=False,bias=-1,seed=None):
         ## La estructura de la red deberá ser configurada como una tupla con
         ## los neurodos por capa que se desee que tenga la red, por ejemplo:
         ##    Para una red con 3 capas ocultas y 5 neurodos por capa se deberá
         ##    ingresar una tupla como la siguiente: (5,5,5)
         self.estructura=estructura[::]
         self.datos_de_entrenamiento=datos_de_entrenamiento
-        self.neurodos_entrada_salida=neurodos_entrada_salida
+        if isinstance(neurodos_entrada_salida,(list,tuple)):
+            entrada,salida=neurodos_entrada_salida
+            self.estructura.insert(0,entrada);self.estructura.append(salida)
+        
+        if isinstance(datos_de_entrenamiento,(list,tuple)):
+            nx=len(datos_de_entrenamiento[0]);ny=len(datos_de_entrenamiento[1])
+            nueva_estructura=self.estructura[::]
+            nueva_estructura.insert(0,nx);nueva_estructura.append(ny)
+            self.estructura=nueva_estructura
         
         ## Variables
         self.pesos=None
@@ -43,19 +53,29 @@ class RedNeuronal(object):
         return(activaciones)
 
     
-    def Entrenar(self,xi,yi,pesos=None,alpha=0.1,max_iter=100000,seed=None):
+    def Entrenar(self,datos_ent=None,pesos=None,alpha=0.1,max_iter=100000,seed=None,tipo_entrenamiento='EL',parametrosAG=None):
+        ##El tipo de entrenamiento por defecto es  Fuera de Linea (FL), también
+        ##puede seleccionarse el tipo En Linea (EL)
         if not seed: seed=self.seed
         ##Se confirma que los datos ingresados sean correctos, además de obtner
         ##el número de datos de entrada y de salida
-        nx,mx=verificarDatosEnt(xi);ny,my=verificarDatosEnt(yi)
+        if not isinstance(datos_ent,(np.ndarray,list,tuple)):
+            xi,yi=self.datos_de_entrenamiento
+            nx,mx=verificarDatosEnt(xi);ny,my=verificarDatosEnt(yi)
+        else:
+            xi,yi=datos_ent
+            nx,mx=verificarDatosEnt(xi);ny,my=verificarDatosEnt(yi)
+            nueva_estructura=self.estructura[::]
+            nueva_estructura.insert(0,nx);nueva_estructura.append(ny)
+            self.estructura=nueva_estructura
+            
+        
         if mx!=my:
             raise ValueError('Las dimensiones de muestras de x y y no concuerdan')
         ##Se copia la estructura predeterminada de la red y se añade
         ##la cantidad de neurodos en la entrada y a la salida
-        nueva_estructura=self.estructura[::]
-        nueva_estructura.insert(0,nx);nueva_estructura.append(ny)
-        self.estructura=nueva_estructura
-        matrices,npesos=dimensionarMatricesDePesos(nueva_estructura)
+        
+        matrices,npesos=dimensionarMatricesDePesos(self.estructura)
         if self.deb:print 'Estructura/Matrices:',nueva_estructura,matrices
         ##Si no se ingresan los pesos, se crean aleatoriamente unos
         if not isinstance(pesos,np.ndarray):
@@ -67,39 +87,137 @@ class RedNeuronal(object):
             if self.deb:print 'Pesos verificados'
 
         ## Entrenamiento
-        if self.deb:print '\nInicio de entrenamiento :D\n'
-        for ent in range(max_iter):
-            ##Seleccion de datos de entrenamiento
-            num_entrenamiento=rnd.randint(0,mx)
-            x=xi[num_entrenamiento];y=yi[num_entrenamiento]
-            ##Propagacion hacia adelante
-            activaciones=self.FP(pesos=pesos,xi=x,seed=seed)
-            y_red=activaciones[-1]
-            error=y-y_red
-            ##Se calculan y almacenan las deltas de cada capa
-            ##Para la capa final:
-            d_final=(np.atleast_2d(error*self.sig_prim(y_red))).T
-            deltas=[d_final]
-            ##Para las demás capas:
-            for i in range(len(activaciones)-2,0,-1):
-                filas=range(len(pesos[i].T)-1)
-                wi=(pesos[i].T)[filas,:]
-                act=np.array([activaciones[i]]).T
-                delta=np.dot(wi,deltas[-1])*self.sig_prim(act)
-                deltas.append(delta)
-                
-            ##Se invierten para facilidad de uso posterior
-            deltas.reverse()
+        if self.deb:print '\nInicio de entrenamiento ,tipo: {}'.format(tipo_entrenamiento)
             
-            ##Actualizacion de pesos en linea
-            for i in range(len(pesos)):
-                act=np.atleast_2d(np.append(activaciones[i],[self.bias]))
-                delta_pesos=np.dot(deltas[i],act)
-                pesos[i]+=alpha*delta_pesos
+        if tipo_entrenamiento=='EL':
+            '''
+            Entrenamiento tipo En Linea, por cada muestra se actualizan los pesos
+            '''
+            for ent in range(max_iter):
+                ##Seleccion de datos de entrenamiento
+                num_entrenamiento=rnd.randint(0,mx)
+                x=xi[num_entrenamiento];y=yi[num_entrenamiento][0]
+                ##Propagacion hacia adelante
+                activaciones=self.FP(pesos=pesos,xi=x,seed=seed)
+                y_red=activaciones[-1]
+                error=y-y_red#-y*np.log(y_red)+(1-y)*np.log(1-y_red)
+                ##Se calculan y almacenan las deltas de cada capa
+                ##Para la capa final:
+                d_final=(np.atleast_2d(error*self.sig_prim(y_red))).T
+                deltas=[d_final]
+                ##Para las demás capas:
+                for i in range(len(activaciones)-2,0,-1):
+                    filas=range(len(pesos[i].T)-1)
+                    wi=(pesos[i].T)[filas,:]
+                    act=np.array([activaciones[i]]).T
+                    delta=np.dot(wi,deltas[-1])*self.sig_prim(act)
+                    deltas.append(delta)
+                    
+                ##Se invierten para facilidad de uso posterior
+                deltas.reverse()
                 
-            if ent%10000==0 and self.deb: print '\nIteracion:',ent,' error:',.5*np.sum(error)**2,'\n',x,y_red,'->',y
+                ##Actualizacion de pesos en linea
+                for i in range(len(pesos)):
+                    act=np.atleast_2d(np.append(activaciones[i],[self.bias]))
+                    delta_pesos=np.dot(deltas[i],act)
+                    pesos[i]+=alpha*delta_pesos
+                    
+                if ent%int(max_iter*.1)==0 and self.deb: print '\nIteracion:',ent,' error:',.5*np.sum(error)**2,'\n',x,y_red,'->',y
+        elif tipo_entrenamiento=='FL':
+            '''
+            Entrenamiento fuera de linea, se prueba con todas las muestras y se actualizan después los pesos
+            '''
+            for ent in range(max_iter):
+                
+                deltas_pesos=list()
+                for m in range(mx):
+#                    print '\nMuestra',m+1,'-'*10
+                    ##Seleccion de datos de entrenamiento
+                    x=xi[m];y=yi[m][0]
+                    ##Propagacion hacia adelante, se almacenan todas las activaciones
+                    ##de los neurodos
+                    activaciones=self.FP(pesos=pesos,xi=x,seed=seed)
+                    y_red=activaciones[-1]
+                    error=y-y_red#-y*np.log(y_red)+(1-y)*np.log(1-y_red)
+                    ##Se calculan y almacenan las deltas de cada capa
+                    ##Para la capa final:
+                    d_final=(np.atleast_2d(error*self.sig_prim(y_red))).T
+                    deltas=[d_final]
+                    ##Para las demás capas:
+                    for i in range(len(activaciones)-2,0,-1):
+                        filas=range(len(pesos[i].T)-1)
+                        wi=(pesos[i].T)[filas,:]
+                        act=np.array([activaciones[i]]).T
+                        delta=np.dot(wi,deltas[-1])*self.sig_prim(act)
+                        deltas.append(delta)
+                        
+                    ##Se invierten para facilidad de uso posterior
+                    deltas.reverse()
+                    
+                    ##Actualizacion de pesos con el error total
+                    for i in range(len(pesos)):
+#                        print '\nPesos',i+1
+                        act=np.atleast_2d(np.append(activaciones[i],[self.bias]))
+                        delta_pesos=np.dot(deltas[i],act)
+                        try:
+#                            print 'Anteriores',deltas_pesos[i]
+#                            print 'A añadir',delta_pesos
+                            deltas_pesos[i]+=delta_pesos/mx
+                            
+                            #print 'Se suma la matriz de delta_pesos'
+                        except:
+#                            print 'Añadidos',delta_pesos
+                            deltas_pesos.append(delta_pesos/mx)
+                            #print 'Se agrega la matriz de delta_pesos'
+                    
+                for i in range(len(deltas_pesos)):
+                    pesos[i]+=alpha*delta_pesos
+                    
+                if ent%int(max_iter*.1)==0 and self.deb: print '\nIteracion:{:^8} -  error:{:^5.4e}'.format(ent,.5*np.sum(error)**2)
         
-        print 'Fin del entrenamiento'
+        elif tipo_entrenamiento=='AG':
+            '''
+            Entrenamiento por medio de algoritmo genético!!! :D
+            '''
+            if not parametrosAG: ##Revisando los parámetros
+                raise ValueError('No hay parametros para el Algoritmo genético')
+            else:
+                num_individuos,num_generaciones=parametrosAG
+                
+            ag=AG()##Se inicia el AG y se asignan parámetros
+            ag.parametros(optim=0,Nind=num_individuos,Ngen=num_generaciones)
+            ##Se define la función objetivo, la que deberá optimizarse
+            def fobj(pesos,est):
+                error_tot=0
+                for m in range(mx):
+                    x=xi[m]
+                    W=redimensionarPesos(pesos,est)
+                    y_red=self.FP(pesos=W,xi=x)[-1]
+                    y=yi[m][0]
+                    error_par=(y-y_red)**2#-y*np.log(a)-(1-y)*np.log(1-a)
+                    error_tot+=error_par
+                
+                return(error_tot/(m+1))       
+
+            ag.variables(comun=[npesos,-10,10])
+            ag.Fobj(fobj,matrices)
+            if self.deb:print('\nInicio de las pruebas')
+            pesos_prueba=[[],1000]
+            for prueba in range(1):
+                if self.deb:print('\nPrueba {}'.format(prueba+1))
+                Went,error=ag.start()
+                if error<pesos_prueba[1]:
+                    pesos_prueba[0]=redimensionarPesos(Went,matrices)
+                    pesos_prueba[1]=error
+                    
+                if self.deb:print 'Error Total:',pesos_prueba[1][0]
+            
+            pesos=pesos_prueba[0]
+                        
+
+
+            
+        if self.deb:print 'Fin del entrenamiento'
             
         self.pesos=pesos
         return(pesos)
@@ -119,9 +237,6 @@ class RedNeuronal(object):
     def sig_prim(self,a):
         return(a*(1.-a))
         
-        
-    def __str__(self):
-        return('Red Neuronal')
 
 '''
 -------------------------------------------------------------------------------
@@ -173,8 +288,8 @@ def redimensionarPesos(pesos,estructura):
 
 
 if __name__=='__main__':
-    est=[2]#real es [2,2,2,1]
-    nn=RedNeuronal(est,deb=True,bias=1)
+    est=[2,2]#real es [2,2,2,1]
+    nn=RedNeuronal(est,deb=True,bias=-1)
     xi=np.array([[0,0],
                  [1,0],
                  [0,1],
@@ -185,14 +300,14 @@ if __name__=='__main__':
                  [0]])
 #    xi=np.array([[.05,.1]])
 #    yi=np.array([[.01,.99]])
-    nuevos_pesos=nn.Entrenar(xi=xi,yi=yi,max_iter=100001,alpha=0.1)
+    nuevos_pesos=nn.Entrenar(datos_ent=(xi,yi),max_iter=100001,alpha=0.3,tipo_entrenamiento='AG',parametrosAG=(25,1000))
     res=nn.FP(xi=[xi[0]],pesos=nuevos_pesos)
-    print '\nPredicciones'
-    print xi[0],np.round(res[-1])
+    print '\nPredicciones, error minimo:{:.4e}'.format(res[1][0])
+    print xi[0],res[-1]
     res=nn.FP(xi=[xi[1]],pesos=nuevos_pesos)
-    print xi[1],np.round(res[-1])
+    print xi[1],res[-1]
     res=nn.FP(xi=[xi[2]],pesos=nuevos_pesos)
-    print xi[2],np.round(res[-1])
+    print xi[2],res[-1]
     res=nn.FP(xi=[xi[3]],pesos=nuevos_pesos)
-    print xi[3],np.round(res[-1])
+    print xi[3],res[-1]
     
