@@ -53,7 +53,8 @@ class RedNeuronal(object):
         return(activaciones)
 
     
-    def Entrenar(self,datos_ent=None,pesos=None,alpha=0.1,max_iter=100000,seed=None,tipo_entrenamiento='EL',parametrosAG=None):
+    def Entrenar(self,datos_ent=None,pesos=None,alpha=0.3,max_iter=500000,seed=None,tipo_entrenamiento='EL',parametrosAG=None,pruebasAG=3):
+        ##Parametros AG:(Nind, Ngen)    ;    agpruebas-> Numero de pruebas para asegurar convergencia
         ##El tipo de entrenamiento por defecto es  Fuera de Linea (FL), también
         ##puede seleccionarse el tipo En Linea (EL)
         if not seed: seed=self.seed
@@ -65,6 +66,7 @@ class RedNeuronal(object):
         else:
             xi,yi=datos_ent
             nx,mx=verificarDatosEnt(xi);ny,my=verificarDatosEnt(yi)
+            print 'Datos leidos correctamente\n'
             nueva_estructura=self.estructura[::]
             nueva_estructura.insert(0,nx);nueva_estructura.append(ny)
             self.estructura=nueva_estructura
@@ -96,7 +98,7 @@ class RedNeuronal(object):
             for ent in range(max_iter):
                 ##Seleccion de datos de entrenamiento
                 num_entrenamiento=rnd.randint(0,mx)
-                x=xi[num_entrenamiento];y=yi[num_entrenamiento][0]
+                x=xi[num_entrenamiento];y=yi[num_entrenamiento]
                 ##Propagacion hacia adelante
                 activaciones=self.FP(pesos=pesos,xi=x,seed=seed)
                 y_red=activaciones[-1]
@@ -122,7 +124,8 @@ class RedNeuronal(object):
                     delta_pesos=np.dot(deltas[i],act)
                     pesos[i]+=alpha*delta_pesos
                     
-                if ent%int(max_iter*.1)==0 and self.deb: print '\nIteracion:',ent,' error:',.5*np.sum(error)**2,'\n',x,y_red,'->',y
+                if ent%int(max_iter*.1)==0 and self.deb: print '\nIteracion:',ent,' error:',.5*np.sum(error)**2,'\n',np.round(y_red),'->',y
+        
         elif tipo_entrenamiento=='FL':
             '''
             Entrenamiento fuera de linea, se prueba con todas las muestras y se actualizan después los pesos
@@ -184,36 +187,27 @@ class RedNeuronal(object):
             else:
                 num_individuos,num_generaciones=parametrosAG
                 
-            ag=AG()##Se inicia el AG y se asignan parámetros
-            ag.parametros(optim=0,Nind=num_individuos,Ngen=num_generaciones)
+            ag=AG(deb=self.deb)##Se inicia el AG y se asignan parámetros
+            ag.parametros(optim=0,Nind=num_individuos,Ngen=num_generaciones,pruebas=pruebasAG)
             ##Se define la función objetivo, la que deberá optimizarse
             def fobj(pesos,est):
                 error_tot=0
-                for m in range(mx):
+                for m in range(mx):#mx):
                     x=xi[m]
                     W=redimensionarPesos(pesos,est)
                     y_red=self.FP(pesos=W,xi=x)[-1]
-                    y=yi[m][0]
+                    y=yi[m]
                     error_par=(y-y_red)**2#-y*np.log(a)-(1-y)*np.log(1-a)
-                    error_tot+=error_par
+                    error_tot+=np.array([np.sum(error_par)])
                 
                 return(error_tot/(m+1))       
 
             ag.variables(comun=[npesos,-10,10])
             ag.Fobj(fobj,matrices)
-            if self.deb:print('\nInicio de las pruebas')
-            pesos_prueba=[[],1000]
-            for prueba in range(1):
-                if self.deb:print('\nPrueba {}'.format(prueba+1))
-                Went,error=ag.start()
-                if error<pesos_prueba[1]:
-                    pesos_prueba[0]=redimensionarPesos(Went,matrices)
-                    pesos_prueba[1]=error
-                    
-                if self.deb:print 'Error Total:',pesos_prueba[1][0]
-            
-            pesos=pesos_prueba[0]
-                        
+            Went,error=ag.start()
+            pesos=redimensionarPesos(Went,matrices)
+   
+            print 'Error min: {:.4e}'.format(error)
 
 
             
@@ -289,20 +283,19 @@ def redimensionarPesos(pesos,estructura):
 
 if __name__=='__main__':
     est=[2,2]#real es [2,2,2,1]
-    nn=RedNeuronal(est,deb=True,bias=-1)
+    nn=RedNeuronal(est,deb=True)
     xi=np.array([[0,0],
                  [1,0],
                  [0,1],
                  [1,1]])
-    yi=np.array([[0],
-                 [1],
-                 [1],
-                 [0]])
+    yi=[[0],[1],[1],[0]]
+    yi=np.array(yi)
+
 #    xi=np.array([[.05,.1]])
 #    yi=np.array([[.01,.99]])
-    nuevos_pesos=nn.Entrenar(datos_ent=(xi,yi),max_iter=100001,alpha=0.3,tipo_entrenamiento='AG',parametrosAG=(25,1000))
+    nuevos_pesos=nn.Entrenar(datos_ent=(xi,yi),tipo_entrenamiento='AG',parametrosAG=(25,500))
     res=nn.FP(xi=[xi[0]],pesos=nuevos_pesos)
-    print '\nPredicciones, error minimo:{:.4e}'.format(res[1][0])
+    print '\nPredicciones'
     print xi[0],res[-1]
     res=nn.FP(xi=[xi[1]],pesos=nuevos_pesos)
     print xi[1],res[-1]

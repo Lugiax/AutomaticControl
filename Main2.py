@@ -7,7 +7,7 @@ Prueba final Red Neuronal para control
 """
 import re
 from columna2 import reboiler
-from RN import RN, redimensionarPesos, dimensionarMatricesPesos
+from RN2 import RedNeuronal, redimensionarPesos, dimensionarMatricesDePesos
 import numpy as np
 import time
 import matplotlib.pyplot as plt
@@ -52,7 +52,7 @@ def perturbacion(pert=None,Lvar0=None,inter=(0,1)):
 gauss= lambda x:10*np.exp(-(x-0.5)**2/(2*0.05**2))    
     
 ################################################################
-with open('pruebasent.txt','r') as f:
+with open('pruebasent1.txt','r') as f:
     archivo=f.readlines()
     
 datos=list()
@@ -120,11 +120,11 @@ print maximo,minimo
 '''
 Se inicia la red neuronal
 '''
-red=RN()
 ar=[pImp[0],pImp[1]]
-red.parametros(arq=ar,arq_io=(int(1/dt),len(resp)))
+red=RedNeuronal(estructura=ar,neurodos_entrada_salida=(int(1/dt),len(resp)))
 
-est,nPesos=dimensionarMatricesPesos(red.arq)
+
+est,nPesos=dimensionarMatricesDePesos(red.estructura)
 W=redimensionarPesos(pesos,est)
 
 for i in range(int(tf/dt)):
@@ -132,7 +132,8 @@ for i in range(int(tf/dt)):
         continue
     else:
         ventana,minmax=norm([Lvar[i-1/dt:i]],(maximo,minimo))
-        y,error=red.FP(W=W,xi=ventana)
+        y=red.FP(pesos=W,xi=ventana)[-1]
+        
         if np.sum(y)>=1:print np.around(y)
         if i%20==0:
             plt.title('{}-{}'.format(i*dt-1,i*dt))

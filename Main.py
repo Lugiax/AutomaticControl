@@ -3,17 +3,14 @@
 Created on Mon Dec  7 10:13:00 2015
 
 @author: carlosaranda
-Pruebas de entrenamiento de una red neuronal con condiciones encontradas por un algoritmo 
-genético para un modelo de un reboiler
+Genera datos para el entrenamiento de la red neuronal
 """
 from __future__ import division, print_function
 
 from columna2 import reboiler
 from AGmultivar import AG
-from RN2 import RedNeuronal
 import numpy as np
 import time
-import matplotlib.pyplot as plt 
 
 
 def norm(a,maxmin=None):
@@ -65,7 +62,7 @@ def condini():
     global Ml,Bl,Vl,tl,Tl,xli
     Ml,Bl,Vl,tl,Tl,xli=[reb.M],[reb.B],[reb.V],[t],[reb.T],[reb.x]
 
-def f_obj(controladores):
+def f_obj(controladores,op):
     reb.kcb,reb.tdb,reb.kcq,reb.tdq=controladores
     condini()
     for i in range(int(tf/dt)):
@@ -78,8 +75,10 @@ def f_obj(controladores):
     
 ##############################################################################################    
 AGS=AG()
-AGS.parametros(optim=0,Nind=25,Ngen=500)
-AGS.variables(comun=[4,0,4])
+AGnInd=50;AGnGen=400
+AGS.parametros(optim=0,Nind=AGnInd,Ngen=AGnGen)
+AGS.variables(comun=[4,0,5])## 4 variables para los controladores, tomando valores
+                            ## mínimos de 0 y máximos de 5
 
 reb=reboiler()
 ## Propiedades de las substancias 
@@ -104,7 +103,7 @@ gauss= lambda x:10*np.exp(-(x-0.5)**2/(2*0.05**2))
 '''
 --------------
 '''
-n_perturbaciones=1 #6max
+n_perturbaciones=6 #6max
 n_pruebas=1
 '''
 ---------
@@ -125,110 +124,19 @@ for prueba in range(n_perturbaciones):
             resultados_plot=resultados
         print('Fin de la corrida:',i+1,'\n------------')
     #print('Fin de la prueba:{}, resultados:{}'.format(prueba,resultados_plot))
-    tabla_resultados.append([Lvar,resultados_plot[0],resultados_plot[1]])
+    tabla_resultados.append([Lvar,resultados_plot[0]])
 #    plt.plot(tabla_resultados[prueba][0])
 #    plt.show()    
     t2=time.time()
     print('Tiempo por prueba:',(t2-t1)/60)
 
-
-x_ent=list();x_maxmin=list();y_ent=list();y_maxmin=list()
-#encontrar maximos y minimos
-xmax=-1000;xmin=1000
-ymax=-1000;ymin=1000
-for res in tabla_resultados:
-    xmax1=max(res[0]);xmin1=min(res[0])
-    ymax1=max(res[1]);ymin1=min(res[1])
-    if xmax1>xmax:
-        xmax=xmax1
-    if ymax1>ymax:
-        ymax=ymax1
-    if xmin1<xmin:
-        xmin=xmin1
-    if ymin1<ymin:
-        ymin=ymin1
-cont=0
-for res in tabla_resultados:
-    x,maxmin_x=norm(res[0],(xmax,xmin))
-#    plt.plot(x)
-#    plt.show()
-    y=np.zeros(len(tabla_resultados))#Se crea una matriz de zeros del tamaño de la tabla de resultados,
-                                     #así la red será entrenada para escojer a un conjunto de elementos
-                                     #dependiendo del parecido de los datos de entrada con los de
-                                     #entrenamiento
-    y[cont]=1
-    #y,maxmin_y=norm(res[1],(ymax,ymin))
-    x_ent.append(x);x_maxmin.append(maxmin_x)
-    y_ent.append(y)
-    #y_ent.append(y);y_maxmin.append(maxmin_y)
-    cont+=1
-
-print(y_ent)
-#print('lenY_ent:',len(y_ent))
-#print('X_ent:',len(x_ent),len(x_ent[0]))
-#print('Y_maxmin:',y_maxmin)  
-#print('Xmaxmin:',x_maxmin)  
-  
-''' 
-Entrenamiento de la red neuronal
-'''
-pImp=([3,3],25,500)
-datos=(x_ent,y_ent)
-print('\nInicio de la red')
-red=RedNeuronal(estructura=pImp[0])
-pesos=red.Entrenar(datos_ent=datos,tipo_entrenamiento='AG',parametrosAG=(pImp[1],pImp[2])) 
-
-print('\nFinalización de entrenamiento y almacenamiento de pesos')
-
-with open('./pruebasent.txt','a') as f:
-    info='Datos de corrida:pImp['+str(pImp[0][0])+','+str(pImp[0][1])+','+str(pImp[1])+','+str(pImp[2])+str(dt)+']\n'
-    f.write(info)
-    p=''
-    r=''
-    for i in pesos:
-        for k in i:
-            for l in k:
-                p=p+str(l)+','
-    for j in range(len(tabla_resultados)):
-        r=r+'['
-        for i in tabla_resultados[j][1]:
-            r=r+str(i)+','
-        r=r+'],'    
-    w=p[:len(p)-1]+'/'+r[:len(r)-1]+'\n' #Todo junto
-    f.write(w)
-       
-print('\nFin de la operación')
-
-
-
-'''
-  
-f_obj(resultados_plot[0])
+## Se escriben los resultados recien obtenidos
+with open('resultadosAG2.txt','a') as f:
+    f.write('resultadosAG npert:{} - Nind:{} - Ngen:{}\n'.format(n_perturbaciones,AGnInd,AGnGen))
+    for res in tabla_resultados:
+        res0str=[str(x) for x in res[0]]
+        res1str=[str(x) for x in res[1]]
+        w=','.join(res0str)+'/['+','.join(res1str)+']\n'
+        f.write(w)
     
-print('\nSe graficaran los siguientes resultados:',resultados_plot)
-
-import matplotlib.pyplot as plt
-plt.figure(figsize=(12,17))
-plt.title('Avance de simulacion')
-
-plt.subplot(3,2,1)
-plt.grid()
-plt.plot(tl,Tl,'k.')
-plt.xlabel('Tiempo');plt.ylabel('Temperatura')
-
-plt.subplot(3,2,2)
-plt.grid()
-plt.plot(tl,Ml,'b-');plt.plot(tl,Bl,'g-');plt.plot(tl,Vl,'r.')
-plt.xlabel('Tiempo');plt.ylabel('Masa')
-
-plt.subplot(3,2,3)
-plt.grid()
-plt.plot(tl[1:],Lvar,'k.')
-plt.xlabel('Tiempo');plt.ylabel('F')
-
-plt.subplot(3,2,4)
-plt.grid()
-plt.plot(tl,xli,'g-')
-plt.xlabel('Tiempo');plt.ylabel('X')
-plt.show()
-'''
+    print('Resultados almacenados\n')

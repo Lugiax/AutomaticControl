@@ -29,7 +29,7 @@ class AG(object):
         
         self.hist_mej=[[],[],[]] ## Variable para guardar la historia del mejor individuo [Generación, Fitness, x]
             
-        if deb:print('\nSe ha iniciado con el algoritmo, favor de introducir los parámetros')
+        if deb:print '\nSe ha iniciado con el algoritmo, favor de introducir los parámetros'
             
         
         ## Funciones de codificación y decodificación
@@ -51,7 +51,7 @@ class AG(object):
     	return(dec)
         
         
-    def parametros(self, pres=None, Nind=None, Ngen=None, prop_cruz=None, prob_mut=None, elit=1, optim=1, tipo_cruz='2p'):
+    def parametros(self, pres=None, Nind=None, Ngen=None, prop_cruz=None, prob_mut=None, elit=1, optim=1, tipo_cruz='2p', pruebas=3):
         if pres:
             self.dxmax=pres
         if Nind:
@@ -64,19 +64,20 @@ class AG(object):
             self.prob_mut=prob_mut
         if optim==1:
             self.max=True
-            if self.deb:print('Máximo')
+            if self.deb:print 'Configurado para buscar el valor máximo' 
         else:
             self.max=False
-            if self.deb:print('Mínimo')
+            if self.deb:print 'Configurado para buscar el valor mínimo' 
         
         self.tipo_cruz=tipo_cruz
         self.elit=elit
+        self.pruebas=pruebas
         
     def Fobj(self, f, datos=None): ## Introducir la función a evaluar
         self.f_obj=f
         self.datos=datos
         
-        if self.deb:print('Se ha introducido correctamente la función objetivo')
+        if self.deb:print 'Se ha introducido correctamente la función objetivo'
     
     def variables(self, variables=None, comun=None):
     	##Si se ingresa la variable comun, deberá tener la siguiente forma:
@@ -99,22 +100,19 @@ class AG(object):
     	self.b_a=dabmax	
     	self.l=int(log(((dabmax)/self.dxmax)+1,2))+1
     	self.dmax=2**self.l-1
-    	if self.deb==True:print('Ingreso de variables Exitoso ',dabmax,self.l,self.dmax)
+    	if self.deb==True:print 'Ingreso de variables Exitoso ',dabmax,self.l,self.dmax
             
             
 
     def fitnes(self, pob):
         result=[list(), list()]
         for ind in pob:
-            #print(f(decod(ind)))
-            if self.datos:
-                fit_ind=self.f_obj(self.decodificado(ind),self.datos)
-            else:
-                fit_ind=self.f_obj(self.decodificado(ind))
-            #print(ind, fit_ind, decod(ind)*dxmax)
-            #print('Fitnes',pob.index(ind),fit_ind)
+            ##Se utiliza la función objetivo para calcular el fitness
+            fit_ind=self.f_obj(self.decodificado(ind),self.datos)
             result[1].append(fit_ind)
+            ##Se acomoda el valor de fitness de mayor a menor o menor a mayor segun se requiera
             result[1]=sorted(result[1], reverse=self.max)
+            ##Se acomodan los individuos de acuerdo a su valor de fitness obtenido
             indice=result[1].index(fit_ind)
             result[0].insert(indice, ind)
 
@@ -230,41 +228,59 @@ class AG(object):
     
 
     def start(self):
+        prueba=list()
+        for p in range(self.pruebas):
+            optimxgen=None
+            ##Creación de individuos!!!!!!!!!!!!!!!!!!!!!
+            if self.deb:print '\nCreación de individuos'
+            self.pob=self.crearPob()
+    
+            
+            ##Acomodo de acuerdo al desempeño!!!!!!!!!!!!
+            if self.deb:print 'Acomodo de individuos por habilidad'
+            fit=self.fitnes(self.pob)
+            
         
-        ##Creación de individuos!!!!!!!!!!!!!!!!!!!!!
-        if self.deb:print('\nCreación de individuos')
-        self.pob=self.crearPob()
+            if self.deb: print '\nPrueba ',p+1
+                
+            for gen in range(self.Ngen):
+                ##Se hace una prueba de rigidez, para ver si ha avanzado el algoritmo
+                if gen%int(self.Ngen*.3)==1:
+                    if optimxgen and optimxgen==mejor[1]:
+                        if self.deb: print 'Se rompe en',optimxgen
+                        break
+                    optimxgen=mejor[1]
+                    
+                if self.deb and gen%int(self.Ngen*.1)==1:print '\nGeneracion:{} - Fitness:{:.4e}'.format(gen+1,mejor[1])
+                #print(fit)
+                
+                #print("\nCruzamiento")
+                
+                ## Cruzamiento!!!!!!!!!!!!!!!!!!!!
+                pob1=self.cruzamiento(fit,tipo=self.tipo_cruz)
+                            
+                
+                ##Mutación!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!            
+                pob_mut=self.mutacion(pob1)
+                ##se vuelve a probar la nueva población
+                fit1=self.fitnes(pob_mut)
+                
+                ### Elitismo !!!!!!!!!!!!!!!!!!!!!
+                fit=self.elitismo(fit, fit1)
+    
+                self.hist_mej[0].append(gen)
+                self.hist_mej[1].append(fit[1][0])
+                self.hist_mej[2].append(fit[0][0])
+                mejor=(self.decodificado(fit[0][0]),fit[1][0][0])
+                #if self.deb and gen%int(self.Ngen*.1)==0:print('Mejor Individuo:',fit[0][0],' vars=',mejor[0],' f=',mejor[1] )
+
+            
+            prueba.append(mejor)
+        
+        prueba=sorted(prueba, key=lambda p: p[1])
 
         
-        ##Acomodo de acuerdo al desempeño!!!!!!!!!!!!
-        if self.deb:print('\nAcomodo de individuos por habilidad')
-        fit=self.fitnes(self.pob)
-         
-        for gen in range(self.Ngen):    
-            if self.deb:print('\nGeneracion:',gen+1)
-            #print(fit)
-            
-            #print("\nCruzamiento")
-            
-            ## Cruzamiento!!!!!!!!!!!!!!!!!!!!
-            pob1=self.cruzamiento(fit,tipo=self.tipo_cruz)
-                        
-            
-            ##Mutación!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!            
-            pob_mut=self.mutacion(pob1)
-            ##se vuelve a probar la nueva población
-            fit1=self.fitnes(pob_mut)
-            
-            ### Elitismo !!!!!!!!!!!!!!!!!!!!!
-            fit=self.elitismo(fit, fit1)
-
-            self.hist_mej[0].append(gen)
-            self.hist_mej[1].append(fit[1][0])
-            self.hist_mej[2].append(fit[0][0])
-            mejor=(self.decodificado(fit[0][0]),fit[1][0])
-            if self.deb:print('Mejor Individuo:',fit[0][0],' vars=',mejor[0],' f=',mejor[1] )
-        
-        return(mejor)
+        return(prueba[0])
             
 if __name__=='__main__':
     
