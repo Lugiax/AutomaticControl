@@ -27,7 +27,7 @@ def condini():
     global Ml,Bl,Vl,tl,Tl,xli
     Ml,Bl,Vl,tl,Tl,xli=[reb.M],[reb.B],[reb.V],[t],[reb.T],[reb.x]
 
-def f_obj(controladores,op):
+def f_obj(controladores,plot=0):
     reb.kcb,reb.tdb,reb.kcq,reb.tdq=controladores
     condini()
     for i in range(int(tf/dt)):
@@ -36,6 +36,32 @@ def f_obj(controladores,op):
         reb.L=float(Lvar[i])
         reb.actualizar(t,dt)
         Ml.append(reb.M),Bl.append(reb.B),Vl.append(reb.V),Tl.append(reb.T),tl.append(t),xli.append(reb.x)
+    if plot==1:
+        print('Graficando la simulacion')
+        plt.figure(figsize=(16,10))
+       
+        plt.subplot(2,2,1);plt.grid(True)
+        plt.plot(tl,Ml,'b.',label='Acumulacion')
+        plt.plot(tl,Bl,'g.',label='Fondos')
+        plt.plot(tl,Vl,'r.',label='Vapor')
+        plt.xlabel('tiempo');plt.ylabel('kg/min')
+        plt.legend(loc=4)
+        
+        plt.subplot(2,2,2);plt.grid(True)
+        plt.plot(tl,Tl,'b.')
+        plt.xlabel('tiempo');plt.ylabel('Temperatura')
+        
+        plt.subplot(2,2,3);plt.grid(True)
+        plt.title('Perturbacion')
+        plt.plot(Lvar)
+        plt.xlabel('tiempo');plt.ylabel('Flujo de entrada')
+        
+        plt.subplot(2,2,4);plt.grid(True)
+        plt.title('FraccionMolar')
+        plt.plot(tl,xli,'b.')
+        plt.xlabel('tiempo');plt.ylabel('X')
+        
+        plt.show()
     return((Ml[-1]-reb.Mref+Bl[-1]-reb.Bref)**2)
     
 ##############################################################################################  
