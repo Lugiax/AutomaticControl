@@ -51,7 +51,7 @@ class AG(object):
     	return(dec)
         
         
-    def parametros(self, pres=None, Nind=None, Ngen=None, prop_cruz=None, prob_mut=None, elit=1, optim=1, tipo_cruz='2p', pruebas=3):
+    def parametros(self, pres=None, Nind=None, Ngen=None, prop_cruz=None, prob_mut=None, elit=1, optim=1, tipo_cruz='2p', pruebas=1):
         if pres:
             self.dxmax=pres
         if Nind:
@@ -100,7 +100,7 @@ class AG(object):
     	self.b_a=dabmax	
     	self.l=int(log(((dabmax)/self.dxmax)+1,2))+1
     	self.dmax=2**self.l-1
-    	if self.deb==True:print 'Ingreso de variables Exitoso ',dabmax,self.l,self.dmax
+    	if self.deb==True:print 'Ingreso de variables exitoso. ValMax={}, LongitudCadena={}'.format(dabmax,self.l)
             
             
 
@@ -271,7 +271,7 @@ class AG(object):
                 self.hist_mej[0].append(gen)
                 self.hist_mej[1].append(fit[1][0])
                 self.hist_mej[2].append(fit[0][0])
-                mejor=(self.decodificado(fit[0][0]),fit[1][0][0])
+                mejor=(self.decodificado(fit[0][0]),fit[1][0])
                 #if self.deb and gen%int(self.Ngen*.1)==0:print('Mejor Individuo:',fit[0][0],' vars=',mejor[0],' f=',mejor[1] )
 
             

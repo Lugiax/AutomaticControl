@@ -12,7 +12,7 @@ from AGmultivar import AG
 
 
 class RedNeuronal(object):
-    def __init__(self,estructura,datos_de_entrenamiento=None,neurodos_entrada_salida=None,deb=False,bias=-1,seed=None):
+    def __init__(self,estructura,datos_de_entrenamiento=None,neurodos_entrada_salida=None,deb=False,bias=1,seed=None):
         ## La estructura de la red deberá ser configurada como una tupla con
         ## los neurodos por capa que se desee que tenga la red, por ejemplo:
         ##    Para una red con 3 capas ocultas y 5 neurodos por capa se deberá
@@ -53,7 +53,7 @@ class RedNeuronal(object):
         return(activaciones)
 
     
-    def Entrenar(self,datos_ent=None,pesos=None,alpha=0.3,max_iter=500000,seed=None,tipo_entrenamiento='EL',parametrosAG=None,pruebasAG=3):
+    def Entrenar(self,datos_ent=None,pesos=None,alpha=0.3,lam=0.3,max_iter=500000,seed=None,tipo_entrenamiento='EL',parametrosAG=None,pruebasAG=3):
         ##Parametros AG:(Nind, Ngen)    ;    agpruebas-> Numero de pruebas para asegurar convergencia
         ##El tipo de entrenamiento por defecto es  Fuera de Linea (FL), también
         ##puede seleccionarse el tipo En Linea (EL)
@@ -66,7 +66,6 @@ class RedNeuronal(object):
         else:
             xi,yi=datos_ent
             nx,mx=verificarDatosEnt(xi);ny,my=verificarDatosEnt(yi)
-            print 'Datos leidos correctamente\n'
             nueva_estructura=self.estructura[::]
             nueva_estructura.insert(0,nx);nueva_estructura.append(ny)
             self.estructura=nueva_estructura
@@ -103,6 +102,13 @@ class RedNeuronal(object):
                 activaciones=self.FP(pesos=pesos,xi=x,seed=seed)
                 y_red=activaciones[-1]
                 error=y-y_red#-y*np.log(y_red)+(1-y)*np.log(1-y_red)
+#                ## Regularización
+#                reg=0
+#                for capa in pesos:
+#                    for sub in capa:
+#                        for j in range(len(sub)-1):
+#                            reg+=sub[j]**2
+#                error+=lam*reg/2
                 ##Se calculan y almacenan las deltas de cada capa
                 ##Para la capa final:
                 d_final=(np.atleast_2d(error*self.sig_prim(y_red))).T
@@ -202,7 +208,7 @@ class RedNeuronal(object):
                 
                 return(error_tot/(m+1))       
 
-            ag.variables(comun=[npesos,-10,10])
+            ag.variables(comun=[npesos,-50,50])
             ag.Fobj(fobj,matrices)
             Went,error=ag.start()
             pesos=redimensionarPesos(Went,matrices)
