@@ -10,7 +10,7 @@ import numpy as np
 import random as rnd
 import matplotlib.pyplot as plt
 ###############################################################################
-def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0):
+def Perturbaciones(rango,dt=0.01,base=0,n_perts=50,plot=0,tipo=None):
     '''
     Generador aleatorio de funciones tipo perturbaciones en un rango (inicio,fin)
     '''
@@ -24,7 +24,7 @@ def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0):
     
     x0,xmax=rango
     xmax/=dt
-    L=(np.random.rand(xmax-x0)*2-1)*.1
+    L=(np.random.rand(xmax-x0)*2-1)*.1+base
 
     l_L=len(L)
     perts=list()
@@ -33,7 +33,8 @@ def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0):
         proporcion=rnd.random() #Proporcion de la perturbacion
         prop_inicio=rnd.random() #lugar del inicio de la perturbacion
         prop_magnitud=rnd.random() #proporcion de la magnitud
-        tipo=rnd.randint(0,2) #Perturbación tipo:0-rampa, 1-escalon, 2-dirac
+        if not tipo:
+            tipo=rnd.randint(0,2) #Perturbación tipo:0-rampa, 1-escalon, 2-dirac
         if tipo==0: #Rampa
             magnitud=rnd.randint(-10,10)*prop_magnitud
         elif tipo==1:#Escalon
@@ -88,11 +89,24 @@ def Perturbar(pert=None,Lvar0=None,inter=(0,1),dt=0.01):
 ###############################################################################
 
 def norm(a,maxmin=None):
+    arr=np.copy(a)
     if not maxmin:
-        minimo=np.min(a)[0]
-        maximo=np.max(a)[0]
+        minimo=np.min(arr)
+        maximo=np.max(arr)
+        return((arr-minimo)/(maximo-minimo),(maximo,minimo))
     else:
-        maximo=maxmin[0];minimo=maxmin[1]
-    if not isinstance(a,np.ndarray):
-        a=np.array(a)
-    return((a-minimo)/(maximo-minimo),(maximo,minimo))
+        maximo,minimo=maxmin
+        return((arr-minimo)/(maximo-minimo))
+
+def denorm(a,maxmin):
+    maximo,minimo=maxmin
+    arr=np.copy(a)
+    return(arr*(maximo-minimo)+minimo)
+
+if __name__=='__main__':
+    a=[1,2,3,4,5]
+    b,maxmin=norm(a)
+    print b , type(b)
+    c=denorm(b,maxmin)
+    print c , type(c)
+    

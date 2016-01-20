@@ -77,7 +77,7 @@ class RedNeuronal(object):
         ##la cantidad de neurodos en la entrada y a la salida
         
         matrices,npesos=dimensionarMatricesDePesos(self.estructura)
-        if self.deb:print 'Estructura/Matrices:',nueva_estructura,matrices
+        if self.deb:print 'Estructura/Matrices:',nueva_estructura,'/',matrices
         ##Si no se ingresan los pesos, se crean aleatoriamente unos
         if not isinstance(pesos,np.ndarray):
             pesos=self.AsignarPesos(nueva_estructura,seed)
@@ -130,7 +130,7 @@ class RedNeuronal(object):
                     delta_pesos=np.dot(deltas[i],act)
                     pesos[i]+=alpha*delta_pesos
                     
-                if ent%int(max_iter*.1)==0 and self.deb: print '\nIteracion:',ent,' error:',.5*np.sum(error)**2,'\n',np.round(y_red),'->',y
+                if ent%int(max_iter*.1)==0 and self.deb: print '\nIteracion:',ent,' error:',.5*np.sum(error)**2,'\n',y_red,'->',y
         
         elif tipo_entrenamiento=='FL':
             '''

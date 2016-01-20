@@ -7,7 +7,10 @@ Created on Thu Oct 15 08:53:04 2015
 Modulo que contiene las diferentes clases que componen a una 
 columna de destilación
 """
+from __future__ import division
 from numericos import newton
+import matplotlib.pyplot as plt
+import numpy as np
 '''
 Rehervidor
 Su única alimentación es el líquido que baja del primer plato.
@@ -29,21 +32,21 @@ class reboiler():
         self.M=0;self.T=0
         
         '''Propiedades de mezcla y substancias'''
-        self.lamvapsubs=None
-        self.cpsubs=None
-        self.tono=None
-        self.alpha=0
+        self.lamvapsubs=(854,2260)
+        self.cpsubs=(2.42,4.18)
+        self.tono=((8.20417,1642.89,230.3),(8.0713,1730.63,233.426))
+        self.alpha=2.54
                       
         '''Constantes de Control'''
-        self.kcb=0.7;self.tdb=0.9;self.Bref=0 ##Para fondos
-        self.kcq=0;self.tdq=0 ##Para reboiler
-        self.Mref=0 ##Para la masa del interior del reboiler
+        self.kcb=0.7;self.tdb=0.9;self.Bref=9 ##Para fondos
+        self.kcq=.5;self.tdq=.5 ##Para reboiler
+        self.Mref=30 ##Para la masa del interior del reboiler
               
         '''Ecuaciones diferenciales'''
         self.dhdt=lambda M,B,h,Q,x:(self.L*self.hl - (self.Qvap*Q/self.lamvap_f(x)*(h+self.lamvap_f(x))+B*h) + Q - h * (self.L-(Q/self.lamvap_f(x)+B)))/M
         self.dMdt=lambda B,Q,x:self.L-(self.Qvap*Q/self.lamvap_f(x)+B)
         self.dQdt=lambda M,B,Q,x:-self.kcq*self.lamvap_f(x)*(self.Mref-M-self.tdq*(self.L-(self.Qvap*Q/self.lamvap_f(x)+B)))
-        self.dBdt=lambda B:self.kcb*(self.Bref-B)/(1+self.tdb*self.kcb)
+        self.dBdt=lambda M:self.kcb*(self.Mref-M)/(1+self.tdb*self.kcb)
         self.dxdt=lambda M,B,Q,x:(self.L*self.xl-(Q/self.lamvap_f(x)*self.equil(x)+B*x)-x*(self.L-(self.Qvap*Q/self.lamvap_f(x)+B)))/M
 
         '''Ecuaciones no diferenciales'''
@@ -54,6 +57,7 @@ class reboiler():
     def Teb(self):
         def tonof(indice,T):
             A,B,C=self.tono[indice]
+            #print (A,B,C)
             return(10**(A-B/(C+T)))
         def fobj(T):
             Pa=tonof(0,T)
@@ -63,7 +67,16 @@ class reboiler():
         def teb(T):
             return(tonof(0,T)-self.Pt)
         return(newton(fobj,newton(teb,0)))
-        
+
+    def condini(self):
+        ## Condiciones iniciales:
+        self.L=20;self.xl=0.8
+        self.M=30.;self.Q=1.1e4;self.B=9
+        ## Estado Estacionario: self.M=30;self.Q=1.08e4;self.B=9;self.V=11
+        self.x=self.xl;self.y=self.equil(self.x);lamvap=self.lamvap_f(self.x)
+        self.hl=220.;self.h=self.hl;self.H=self.h+lamvap
+        self.T=self.h/self.cp(self.x);self.V=self.Q/self.lamvap_f(self.x)
+        self.Pt=760.##mmHg
         
     def actualizar(self,t,paso=0.1):
         Teb=self.Teb()
@@ -77,22 +90,22 @@ class reboiler():
         k11=self.dhdt(M,B,h,Q,x)
         k12=self.dMdt(B,Q,x)
         k13=self.dQdt(M,B,Q,x)
-        k14=self.dBdt(B)
+        k14=self.dBdt(M)
         k15=self.dxdt(M,B,Q,x)
         k21=self.dhdt(M+paso*k12/2,B+paso*k14/2,h+paso*k11/2,Q+paso*k13/2,x+paso*k15/2)
         k22=self.dMdt(B+paso*k14/2,Q+paso*k13/2,x+paso*k15/2)
         k23=self.dQdt(M+paso*k12/2,B+paso*k14/2,Q+paso*k13/2,x+paso*k15/2)
-        k24=self.dBdt(B+paso*k14/2)
+        k24=self.dBdt(M+paso*k14/2)
         k25=self.dxdt(M+paso*k12/2,B+paso*k14/2,Q+paso*k13/2,x+paso*k15/2)
         k31=self.dhdt(M+paso*k22/2,B+paso*k24/2,h+paso*k21/2,Q+paso*k23/2,x+paso*k25/2)
         k32=self.dMdt(B+paso*k24/2,Q+paso*k23/2,x+paso*k25/2)
         k33=self.dQdt(M+paso*k22/2,B+paso*k24/2,Q+paso*k23/2,x+paso*k25/2)
-        k34=self.dBdt(B+paso*k24/2)
+        k34=self.dBdt(M+paso*k24/2)
         k35=self.dxdt(M+paso*k22/2,B+paso*k24/2,Q+paso*k23/2,x+paso*k25/2)
         k41=self.dhdt(M+paso*k32,B+paso*k34,h+paso*k31,Q+paso*k33,x+paso*k35)
         k42=self.dMdt(B+paso*k34,Q+paso*k33,x+paso*k35/2)
         k43=self.dQdt(M+paso*k32,B+paso*k34,Q+paso*k33,x+paso*k35)
-        k44=self.dBdt(B+paso*k34)
+        k44=self.dBdt(M+paso*k34)
         k45=self.dxdt(M+paso*k32,B+paso*k34,Q+paso*k33,x+paso*k35)
 
         if M>0:
@@ -110,6 +123,44 @@ class reboiler():
             self.Q=0
         self.V=self.Qvap*self.Q/self.lamvap_f(self.x)
         self.T=self.h/self.cp(self.x)
+
+    def simular(self,controladores,Lvar,dt=0.01,plot=0):
+        self.kcb,self.tdb,self.kcq,self.tdq=controladores
+        self.condini()
+        t=0
+        Ml,Bl,Vl,tl,Tl,xli=[self.M],[self.B],[self.V],[t],[self.T],[self.x]
+        for i in range(len(Lvar)):
+            t+=dt
+            self.L=float(Lvar[i])
+            self.actualizar(t,dt)
+            Ml.append(self.M),Bl.append(self.B),Vl.append(self.V),Tl.append(self.T),tl.append(t),xli.append(self.x)
+        if plot==1:
+            print('Graficando la simulacion')
+            plt.figure(figsize=(16,10))
+           
+            plt.subplot(2,2,1);plt.grid(True)
+            plt.plot(tl,Ml,'b.',label='Acumulacion')
+            plt.plot(tl,Bl,'g.',label='Fondos')
+            plt.plot(tl,Vl,'r.',label='Vapor')
+            plt.xlabel('tiempo');plt.ylabel('kg/min')
+            #plt.legend(loc=1)
+            
+            plt.subplot(2,2,2);plt.grid(True)
+            plt.plot(tl,Tl,'b.')
+            plt.xlabel('tiempo');plt.ylabel('Temperatura')
+            
+            plt.subplot(2,2,3);plt.grid(True)
+            plt.title('Perturbacion')
+            plt.plot(Lvar)
+            plt.xlabel('tiempo');plt.ylabel('Flujo de entrada')
+            
+            plt.subplot(2,2,4);plt.grid(True)
+            plt.title('FraccionMolar')
+            plt.plot(tl,xli,'b.')
+            plt.xlabel('tiempo');plt.ylabel('X')
+
+            plt.show()
+        return(np.trapz(np.abs(np.array(Ml[len(Ml)-20:])-20)))
         
 if __name__=='__main__':
     """
