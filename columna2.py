@@ -8,6 +8,8 @@ Modulo que contiene las diferentes clases que componen a una
 columna de destilación
 """
 from numericos import newton
+import numpy as np
+import matplotlib.pyplot as plt
 '''
 Rehervidor
 Su única alimentación es el líquido que baja del primer plato.
@@ -27,17 +29,17 @@ class reboiler():
         self.B=0;self.x=0;self.h=0
         
         self.M=0;self.T=0
-        
+
         '''Propiedades de mezcla y substancias'''
-        self.lamvapsubs=None
-        self.cpsubs=None
-        self.tono=None
-        self.alpha=0
+        self.lamvapsubs=(854,2260)
+        self.cpsubs=(2.42,4.18)
+        self.tono=((8.20417,1642.89,230.3),(8.0713,1730.63,233.426))
+        self.alpha=2.54
                       
         '''Constantes de Control'''
-        self.kcb=0.7;self.tdb=0.9;self.Bref=0 ##Para fondos
-        self.kcq=0;self.tdq=0 ##Para reboiler
-        self.Mref=0 ##Para la masa del interior del reboiler
+        self.kcb=0.7;self.tdb=0.9;self.Bref=9 ##Para fondos
+        self.kcq=0.5;self.tdq=0.5 ##Para reboiler
+        self.Mref=30##Para la masa del interior del reboiler
               
         '''Ecuaciones diferenciales'''
         self.dhdt=lambda M,B,h,Q,x:(self.L*self.hl - (self.Qvap*Q/self.lamvap_f(x)*(h+self.lamvap_f(x))+B*h) + Q - h * (self.L-(Q/self.lamvap_f(x)+B)))/M
@@ -64,6 +66,15 @@ class reboiler():
             return(tonof(0,T)-self.Pt)
         return(newton(fobj,newton(teb,0)))
         
+    def condini(self):
+        ## Condiciones iniciales:
+        self.L=20;self.xl=0.8
+        self.M=30.;self.Q=1.1e4;self.B=9
+        ## Estado Estacionario: self.M=30;self.Q=1.08e4;self.B=9;self.V=11
+        self.x=self.xl;self.y=self.equil(self.x);lamvap=self.lamvap_f(self.x)
+        self.hl=220.;self.h=self.hl;self.H=self.h+lamvap
+        self.T=self.h/self.cp(self.x);self.V=self.Q/self.lamvap_f(self.x)
+        self.Pt=760.##mmHg
         
     def actualizar(self,t,paso=0.1):
         Teb=self.Teb()
@@ -110,6 +121,47 @@ class reboiler():
             self.Q=0
         self.V=self.Qvap*self.Q/self.lamvap_f(self.x)
         self.T=self.h/self.cp(self.x)
+        
+        
+    def simular(self,controladores,Lvar,dt=0.01,plot=0):
+        self.kcb,self.tdb,self.kcq,self.tdq=controladores
+        self.condini()
+        t=0
+        Ml,Bl,Vl,tl,Tl,xli=[self.M],[self.B],[self.V],[t],[self.T],[self.x]
+        for i in range(len(Lvar)):
+            t+=dt
+            self.L=float(Lvar[i])
+            self.actualizar(t,dt)
+            Ml.append(self.M),Bl.append(self.B),Vl.append(self.V),Tl.append(self.T),tl.append(t),xli.append(self.x)
+
+        if plot==1:
+            print('Graficando la simulacion')
+            plt.figure(figsize=(16,10))
+               
+            plt.subplot(2,2,1);plt.grid(True)
+            plt.plot(tl,Ml,'b.',label='Acumulacion')
+            plt.plot(tl,Bl,'g.',label='Fondos')
+            plt.plot(tl,Vl,'r.',label='Vapor')
+            plt.xlabel('tiempo');plt.ylabel('kg/min')
+            plt.legend(loc=4)
+            
+            plt.subplot(2,2,2);plt.grid(True)
+            plt.plot(tl,Tl,'b.')
+            plt.xlabel('tiempo');plt.ylabel('Temperatura')
+            
+            plt.subplot(2,2,3);plt.grid(True)
+            plt.title('Perturbacion')
+            plt.plot(Lvar)
+            plt.xlabel('tiempo');plt.ylabel('Flujo de entrada')
+            
+            plt.subplot(2,2,4);plt.grid(True)
+            plt.title('FraccionMolar')
+            plt.plot(tl,xli,'b.')
+            plt.xlabel('tiempo');plt.ylabel('X')
+            
+            plt.show()
+        
+        return(np.trapz(np.abs(np.array(Ml[-25:])-20)))
         
 if __name__=='__main__':
     """

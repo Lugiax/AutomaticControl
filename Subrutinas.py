@@ -10,16 +10,16 @@ import numpy as np
 import random as rnd
 import matplotlib.pyplot as plt
 ###############################################################################
-def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0):
+def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0,tipo=None):
     '''
     Generador aleatorio de funciones tipo perturbaciones en un rango (inicio,fin)
     '''
     def f_pert(x,mag,tipo,mitad):
-        if tipo==0:#rampa
+        if tipo==1:#rampa
             return((x-inicio/l_L)*mag)
-        elif tipo==1:
-            return(mag)
         elif tipo==2:
+            return(mag)
+        elif tipo==3:
             return (mag*np.exp(-(x-mitad)**2/(2*0.001**2)))
     
     x0,xmax=rango
@@ -33,12 +33,13 @@ def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0):
         proporcion=rnd.random() #Proporcion de la perturbacion
         prop_inicio=rnd.random() #lugar del inicio de la perturbacion
         prop_magnitud=rnd.random() #proporcion de la magnitud
-        tipo=rnd.randint(0,2) #Perturbación tipo:0-rampa, 1-escalon, 2-dirac
-        if tipo==0: #Rampa
+        if not tipo: tipo=rnd.randint(1,3) #Perturbación tipo:1-rampa, 2-escalon, 3-dirac
+        
+        if tipo==1: #Rampa
             magnitud=rnd.randint(-10,10)*prop_magnitud
-        elif tipo==1:#Escalon
+        elif tipo==2:#Escalon
             magnitud=rnd.randint(-7,7)*prop_magnitud
-        elif tipo==2:#Dirac
+        elif tipo==3:#Dirac
             magnitud=rnd.randint(-10,10)*prop_magnitud
     
         inicio=int((1-proporcion)*prop_inicio*l_L)
@@ -88,11 +89,18 @@ def Perturbar(pert=None,Lvar0=None,inter=(0,1),dt=0.01):
 ###############################################################################
 
 def norm(a,maxmin=None):
+    arr=np.copy(a)
     if not maxmin:
-        minimo=np.min(a)[0]
-        maximo=np.max(a)[0]
+        minimo=np.min(arr)[0]
+        maximo=np.max(arr)[0]
+        return((arr-minimo)/(maximo-minimo),(maximo,minimo))
     else:
         maximo=maxmin[0];minimo=maxmin[1]
-    if not isinstance(a,np.ndarray):
-        a=np.array(a)
-    return((a-minimo)/(maximo-minimo),(maximo,minimo))
+        return((arr-minimo)/(maximo-minimo))
+
+def denorm(a,maxmin):
+    maximo,minimo=maxmin
+    arr=np.copy(a)
+    return(arr*(maximo-minimo)+minimo)
+
+    
