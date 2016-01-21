@@ -53,7 +53,7 @@ class RedNeuronal(object):
         return(activaciones)
 
     
-    def Entrenar(self,datos_ent=None,pesos=None,alpha=0.3,max_iter=500000,seed=None,tipo_entrenamiento='EL',parametrosAG=None,pruebasAG=1):
+    def Entrenar(self,datos_ent=None,pesos=None,alpha=0.3,max_iter=500000,seed=None,tipo_entrenamiento='EL',parametrosAG=(30,500),pruebasAG=1):
         ##Parametros AG:(Nind, Ngen)    ;    agpruebas-> Numero de pruebas para asegurar convergencia
         ##El tipo de entrenamiento por defecto es  Fuera de Linea (FL), también
         ##puede seleccionarse el tipo En Linea (EL)
