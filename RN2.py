@@ -53,7 +53,7 @@ class RedNeuronal(object):
         return(activaciones)
 
     
-    def Entrenar(self,datos_ent=None,pesos=None,alpha=0.3,lam=0.3,max_iter=500000,seed=None,tipo_entrenamiento='EL',parametrosAG=None,pruebasAG=3):
+    def Entrenar(self,datos_ent=None,pesos=None,alpha=0.3,max_iter=500000,seed=None,tipo_entrenamiento='EL',parametrosAG=None,pruebasAG=1):
         ##Parametros AG:(Nind, Ngen)    ;    agpruebas-> Numero de pruebas para asegurar convergencia
         ##El tipo de entrenamiento por defecto es  Fuera de Linea (FL), también
         ##puede seleccionarse el tipo En Linea (EL)
@@ -101,14 +101,7 @@ class RedNeuronal(object):
                 ##Propagacion hacia adelante
                 activaciones=self.FP(pesos=pesos,xi=x,seed=seed)
                 y_red=activaciones[-1]
-                error=y-y_red#-y*np.log(y_red)+(1-y)*np.log(1-y_red)
-#                ## Regularización
-#                reg=0
-#                for capa in pesos:
-#                    for sub in capa:
-#                        for j in range(len(sub)-1):
-#                            reg+=sub[j]**2
-#                error+=lam*reg/2
+                error=y-y_red
                 ##Se calculan y almacenan las deltas de cada capa
                 ##Para la capa final:
                 d_final=(np.atleast_2d(error*self.sig_prim(y_red))).T
@@ -213,10 +206,71 @@ class RedNeuronal(object):
             Went,error=ag.start()
             pesos=redimensionarPesos(Went,matrices)
    
-            print 'Error min: {:.4e}'.format(error)
+            print 'Error min: {:.4e}'.format(error[0])
 
+        elif tipo_entrenamiento=='CM':
+            '''
+            Entrenamiento combinado entre Algoritmo Genético y
+            BackPropagation
+            '''
+            if not parametrosAG: ##Revisando los parámetros
+                raise ValueError('No hay parametros para el Algoritmo genético')
+            else:
+                num_individuos,num_generaciones=parametrosAG
+                
+            ag=AG(deb=self.deb)##Se inicia el AG y se asignan parámetros
+            ag.parametros(optim=0,Nind=num_individuos,Ngen=num_generaciones,pruebas=pruebasAG)
+            ##Se define la función objetivo, la que deberá optimizarse
+            def fobj(pesos,est):
+                error_tot=0
+                for m in range(mx):#mx):
+                    x=xi[m]
+                    W=redimensionarPesos(pesos,est)
+                    y_red=self.FP(pesos=W,xi=x)[-1]
+                    y=yi[m]
+                    error_par=(y-y_red)**2#-y*np.log(a)-(1-y)*np.log(1-a)
+                    error_tot+=np.array([np.sum(error_par)])
+                
+                return(error_tot/(m+1))       
 
-            
+            ag.variables(comun=[npesos,-50,50])
+            ag.Fobj(fobj,matrices)
+            Went,error=ag.start()
+            pesos=redimensionarPesos(Went,matrices)
+   
+            if self.deb:print 'Error min: {:.4e}\n\nComienza BackProp'.format(error[0])
+
+            for ent in range(max_iter):
+                ##Seleccion de datos de entrenamiento
+                num_entrenamiento=rnd.randint(0,mx)
+                x=xi[num_entrenamiento];y=yi[num_entrenamiento]
+                ##Propagacion hacia adelante
+                activaciones=self.FP(pesos=pesos,xi=x,seed=seed)
+                y_red=activaciones[-1]
+                error=y-y_red
+                ##Se calculan y almacenan las deltas de cada capa
+                ##Para la capa final:
+                d_final=(np.atleast_2d(error*self.sig_prim(y_red))).T
+                deltas=[d_final]
+                ##Para las demás capas:
+                for i in range(len(activaciones)-2,0,-1):
+                    filas=range(len(pesos[i].T)-1)
+                    wi=(pesos[i].T)[filas,:]
+                    act=np.array([activaciones[i]]).T
+                    delta=np.dot(wi,deltas[-1])*self.sig_prim(act)
+                    deltas.append(delta)
+                    
+                ##Se invierten para facilidad de uso posterior
+                deltas.reverse()
+                
+                ##Actualizacion de pesos en linea
+                for i in range(len(pesos)):
+                    act=np.atleast_2d(np.append(activaciones[i],[self.bias]))
+                    delta_pesos=np.dot(deltas[i],act)
+                    pesos[i]+=alpha*delta_pesos
+                    
+                if ent%int(max_iter*.1)==0 and self.deb: print '\nIteracion:',ent,' error:',.5*np.sum(error)**2,'\n',np.round(y_red),'->',y
+                    
         if self.deb:print 'Fin del entrenamiento'
             
         self.pesos=pesos
@@ -299,7 +353,7 @@ if __name__=='__main__':
 
 #    xi=np.array([[.05,.1]])
 #    yi=np.array([[.01,.99]])
-    nuevos_pesos=nn.Entrenar(datos_ent=(xi,yi),tipo_entrenamiento='AG',parametrosAG=(25,500))
+    nuevos_pesos=nn.Entrenar(datos_ent=(xi,yi),tipo_entrenamiento='CM',parametrosAG=(20,60),max_iter=3000)
     res=nn.FP(xi=[xi[0]],pesos=nuevos_pesos)
     print '\nPredicciones'
     print xi[0],res[-1]

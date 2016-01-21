@@ -251,7 +251,7 @@ class AG(object):
                         break
                     optimxgen=mejor[1]
                     
-                if self.deb and gen%int(self.Ngen*.1)==1:print '\nGeneracion:{} - Fitness:{:.4e}'.format(gen+1,mejor[1])
+                if self.deb and gen%int(self.Ngen*.1)==1:print '\nGeneracion:{} - Fitness:{:.4e}'.format(gen+1,mejor[1][0])
                 #print(fit)
                 
                 #print("\nCruzamiento")
