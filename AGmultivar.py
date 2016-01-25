@@ -10,6 +10,8 @@ Algorítmo Genético con variables múltiples
 from math import log
 import random as rnd
 from binstr import b_bin_to_gray, b_gray_to_bin
+import multiprocessing as mp
+from functools import partial
 
 
 class AG(object):
@@ -51,7 +53,7 @@ class AG(object):
     	return(dec)
         
         
-    def parametros(self, pres=None, Nind=None, Ngen=None, prop_cruz=None, prob_mut=None, elit=1, optim=1, tipo_cruz='2p', pruebas=1):
+    def parametros(self, pres=None, Nind=None, Ngen=None, prop_cruz=None, prob_mut=None, elit=1, optim=0, tipo_cruz='2p', pruebas=1, multi=None):
         if pres:
             self.dxmax=pres
         if Nind:
@@ -69,6 +71,7 @@ class AG(object):
             self.max=False
             if self.deb:print 'Configurado para buscar el valor mínimo' 
         
+        self.multi=multi
         self.tipo_cruz=tipo_cruz
         self.elit=elit
         self.pruebas=pruebas
@@ -105,18 +108,13 @@ class AG(object):
             
 
     def fitnes(self, pob):
-        result=[list(), list()]
+        result=list()
         for ind in pob:
             ##Se utiliza la función objetivo para calcular el fitness
             fit_ind=self.f_obj(self.decodificado(ind),self.datos)
-            result[1].append(fit_ind)
-            ##Se acomoda el valor de fitness de mayor a menor o menor a mayor segun se requiera
-            result[1]=sorted(result[1], reverse=self.max)
-            ##Se acomodan los individuos de acuerdo a su valor de fitness obtenido
-            indice=result[1].index(fit_ind)
-            result[0].insert(indice, ind)
-
-            
+            result.append([fit_ind,ind])
+        result.sort(reverse=self.max)
+        #print result
         return(result)
 
     def crearPob(self,N_ind=None, d_max=None):
@@ -137,17 +135,21 @@ class AG(object):
         
         return(pob)
 
-
-    def cruzamiento(self, fit,tipo='2p'):
-    ## El cruzamiento se hará de tipo Vasconcelos
-        pob1=list()
-        
+    def seleccion(self,fit):
+    ## La selección se hará de tipo Vasconcelos
+        cruza=list()
         #print('Cruzamiento Nind:',int(self.Nind/2))
         for i in range(int(self.Nind/2)):
-            #print('\nSeleccion',i+1)
-            ind1_0=fit[0][i]
-            ind2_0=fit[0][self.Nind-i-1]
-            #print(ind1_0, ind2_0)
+            #print '\nSeleccion',i+1
+            ind1=fit[i][1]
+            ind2=fit[self.Nind-i-1][1]
+            cruza.append([ind1,ind2])
+        return cruza
+        
+    def cruzamiento(self,tipo,pob):
+        pob1=list()
+        for pareja in pob:
+            ind1_0,ind2_0=pareja
             ind1=''
             ind2=''
             if tipo=='uniforme':
@@ -178,13 +180,10 @@ class AG(object):
                     temp=ind1_0[r1:r2]
                     ind1=ind1_0[:r1]+ind2_0[r1:r2]+ind1_0[r2:]
                     ind2=ind2_0[:r1]+temp+ind2_0[r2:]
-#                    print(temp,r1,r2,l)
-#                    print(ind1_0,ind2_0,(len(ind1_0),len(ind2_0)))
-#                    print(ind1,ind2,(len(ind1),len(ind2)))
-
-            pob1.append(ind1)
-            pob1.append(ind2)
-        
+                    #print temp,r1,r2,l
+                    #print ind1_0,ind2_0,(len(ind1_0),len(ind2_0))
+                    #print ind1,ind2,(len(ind1),len(ind2))
+            pob1.append(ind1);pob1.append(ind2)
         #print('Cruzamiento lpob:',len(pob1))
         return(pob1)
 
@@ -207,22 +206,22 @@ class AG(object):
         return(pob_mut)
     
     def elitismo(self, fit, fit1):
-        fit_max=fit[1][0]
+        fit_max=fit[0][0]
         #print('Elitismo:',len(fit1[0]),len(fit1[1]))
         for ind in range(self.Nind):
             if self.max:
-                if fit1[1][ind]>fit_max or rnd.random()>self.elit:
+                if fit1[ind][0]>fit_max or rnd.random()>self.elit:
                     continue
-                if fit1[1][ind]<fit[1][ind]:
-                    fit1[1][ind]=fit[1][ind]
-                    fit1[0][ind]=fit[0][ind]
+                if fit1[ind][0]<fit[ind][0]:
+                    fit1[ind][0]=fit[ind][0]
+                    fit1[ind][1]=fit[ind][1]
                     
             elif not self.max:
-                if fit1[1][ind]<fit_max or rnd.random()>self.elit:
+                if fit1[ind][0]<fit_max or rnd.random()>self.elit:
                     continue
-                if fit1[1][ind]>fit[1][ind]:
-                    fit1[1][ind]=fit[1][ind]
-                    fit1[0][ind]=fit[0][ind]
+                if fit1[ind][0]>fit[ind][0]:
+                    fit1[ind][0]=fit[ind][0]
+                    fit1[ind][1]=fit[ind][1]
         
         return(fit1)
     
@@ -251,27 +250,33 @@ class AG(object):
                         break
                     optimxgen=mejor[1]
                     
-                if self.deb and gen%int(self.Ngen*.1)==1:print '\nGeneracion:{} - Fitness:{:.4e}'.format(gen+1,mejor[1][0])
+                if self.deb and gen%int(self.Ngen*.1)==1:print '\nGeneracion:{} - Fitness:{:.4e}'.format(gen+1,mejor[1])
                 #print(fit)
                 
                 #print("\nCruzamiento")
-                
+                sel=self.seleccion(fit)
                 ## Cruzamiento!!!!!!!!!!!!!!!!!!!!
-                pob1=self.cruzamiento(fit,tipo=self.tipo_cruz)
+                if not self.multi:
+                    pob1=self.cruzamiento(self.tipo_cruz,sel)
+                else:
+                    cruz=partial(self.cruzamiento,self.tipo_cruz)
+                    
                             
-                
                 ##Mutación!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!            
                 pob_mut=self.mutacion(pob1)
+
                 ##se vuelve a probar la nueva población
                 fit1=self.fitnes(pob_mut)
-                
+
                 ### Elitismo !!!!!!!!!!!!!!!!!!!!!
                 fit=self.elitismo(fit, fit1)
-    
+
+                #print fit[0]
                 self.hist_mej[0].append(gen)
-                self.hist_mej[1].append(fit[1][0])
-                self.hist_mej[2].append(fit[0][0])
-                mejor=(self.decodificado(fit[0][0]),fit[1][0])
+                self.hist_mej[1].append(fit[0][0])
+                self.hist_mej[2].append(fit[0][1])
+                mejor=(self.decodificado(fit[0][1]),fit[0][0])
+                #print 'Mejor:',mejor
                 #if self.deb and gen%int(self.Ngen*.1)==0:print('Mejor Individuo:',fit[0][0],' vars=',mejor[0],' f=',mejor[1] )
 
             
@@ -283,5 +288,19 @@ class AG(object):
         return(prueba[0])
             
 if __name__=='__main__':
+    import matplotlib.pyplot as plt
+    import numpy as np
+    f=lambda x,y:x**2+3*x
+    x=np.linspace(-3,1,50)
+    plt.plot(x,f(x,1))
+
+    ag=AG()
+    ag.parametros(Nind=20,Ngen=100,optim=0)
+    ag.variables(comun=[1,-3,1])
+    f=lambda x,y:x[0]**2+3*x[0]
     
-    print('Hola!!!')
+    ag.Fobj(f)
+    res=ag.start()
+    print res[0][0]
+
+    plt.show()

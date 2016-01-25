@@ -38,7 +38,7 @@ def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0,tipo=None):
         if tipo==1: #Rampa
             magnitud=rnd.randint(-10,10)*prop_magnitud
         elif tipo==2:#Escalon
-            magnitud=rnd.randint(-7,7)*prop_magnitud
+            magnitud=rnd.randint(-5,5)*prop_magnitud
         elif tipo==3:#Dirac
             magnitud=rnd.randint(-10,10)*prop_magnitud
     

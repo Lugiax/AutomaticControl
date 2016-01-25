@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import re
 from Subrutinas import norm    
 
-with open('resultadosAG.txt','r') as f:
+with open('resultadosAG3.txt','r') as f:
     datos=f.read()
 
 datosx=re.findall('\<pert0\>([-\d.,]+)',datos)
@@ -24,17 +24,26 @@ dt=float(re.findall('\<dt\>([-\d.]+)',datos)[0])
 
 tabla_resultados=list()
 npert=len(datosx)
-
+contr_l=[list(),list()]
 for i in range(npert):
     datox=datosx[i].split(',')
     datox=[float(x) for x in datox]
     datoy=datosy[i].split(',')
     datoy=[float(x) for x in datoy]
+    contr_l[0].append(datoy[2])
+    contr_l[1].append(datoy[3])
     if len(datox)==100 and len(datoy)==4:
         tabla_resultados.append([datox,datoy])
     else:
         print 'La perturbacion {} no cumple con las dimensiones-> x:{} ; y:{}'.format(i+1,len(datosx[i]),len(datosy[i]))
-
+plt.figure(figsize=(15,7))
+plt.subplot(1,2,1)
+plt.plot(contr_l[0])
+plt.title('Controlador Proporcional')
+plt.subplot(1,2,2)
+plt.plot(contr_l[1])
+plt.title('Controlador Derivativo')
+plt.show()
 x_ent=list();y_ent=list()
 for res in tabla_resultados:
     x=list(norm(res[0],(interx,-interx)))
@@ -48,14 +57,14 @@ Entrenamiento de la red neuronal
 tipo_ent='CM'
 datos=(np.array(x_ent),np.array(y_ent))
 print '\nInicio de la red'
-estructura=[15,10,5]
+estructura=[10,10,5]
 red=RedNeuronal(estructura=estructura,deb=True)
-pesos=red.Entrenar(datos_ent=datos,tipo_entrenamiento=tipo_ent) 
+pesos=red.Entrenar(datos_ent=datos,tipo_entrenamiento=tipo_ent,max_iter=100000) 
 
 print '\nFinalización de entrenamiento, se comienza a almacenar los pesos'
 
-with open('./pruebasent3.txt','w') as f:
-    info='<entrenamiento><estructura>{}</estructura><interx>{}</interx><intery>{}</intery><dt>{}</dt>\n'.format(','.join([str(x for x in estructura)]),interx,intery,dt)
+with open('./pruebasent.txt','w') as f:
+    info='<entrenamiento><estructura>{}</estructura><interx>{}</interx><intery>{}</intery><dt>{}</dt>\n'.format(','.join([str(k) for k in red.estructura]),interx,intery,dt)
     f.write(info)
     p=''
     for i in pesos:
