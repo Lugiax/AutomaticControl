@@ -6,54 +6,49 @@ Compilación de métodos numéricos
 
 @author: carlos
 """
+from __future__ import division
 
-def newton(f,x0,it=20,dstep=0.001):
+def newton(f,x0,it=20,dstep=0.0001):
     x=x0
     for i in range(it):
         df=(f(x+dstep)-f(x-dstep))/dstep
         if df==0:
             break
         x=x-f(x)/df
+        #print 'Nuevo valor:',x
     return(x)
-    
-def RK4(f, x=0,t=0, step=0.1, inter=[0,10]):
-    if isinstance(f, (tuple, list)):
-        print('Functions')
-        tlist=[z*step for z in range(inter[0],int(inter[1]/step))]
-        xlist=[]
-        for function in f:
-            xlist.append(RK4(function)[1])
+
+def FalsaPosicion(f,x1,x2,xr=0,it=40,tol=1e-5):
+    f1=f(x1)
+    f2=f(x2)
+    repeticiones1=0;repeticiones2=0
+    for i in range(it):
+        xr_viejo=xr
+        xr=x2-(f2*(x1-x2))/(f1-f2)
+        error=abs((xr_viejo-xr)/xr)
+        fr=f(xr)
+        comprobacion=f1*fr
+        if comprobacion<0:
+            x2=xr;f2=fr
+            repeticiones2=0
+            repeticiones1+=1
+            if repeticiones2==2: f1=f1/2
+        elif comprobacion>0:
+            x1=xr;f1=fr
+            repeticiones1=0
+            repeticiones2+=1
+            if repeticiones1==2: f2=f2/2
+        else:
+            error=0
         
-        return(tlist,xlist)
-            
-    else:
-        print('function')
-        xlist=[]
-        tlist=[]
-        print('Range:',inter[0],' a' ,inter[1]/step)
-        for i in range(inter[0], int(inter[1]/step)):
-            print('t:',t)
-            k1=step*f(x,t)
-            k2=step*f(x+0.5*k1,t+0.5*step)
-            k3=step*f(x+0.5*k2,t+0.5*step)
-            k4=step*f(x+k3,t+step)
-            
-            x+=1/6*(k1+2*k2+2*k3+k4)
-            t+=step
-            xlist.append(x)
-            tlist.append(t)
-            
-        return(tlist,xlist)
-        
-def RK4s(f, x=0, t=0, step=0.1):
-    k1=step*f(x,t)
-    k2=step*f(x+0.5*k1,t+0.5*step)
-    k3=step*f(x+0.5*k2,t+0.5*step)
-    k4=step*f(x+k3,t+step)
-    x+=1/6*(k1+2*k2+2*k3+k4)
-    return(x)
+        if error<=tol:
+            break
     
-def EulerInt(f, x=0,t=0, step=0.1, inter=[0,10]):
+    return xr
+        
+        
+        
+def Euler(f, x=0,t=0, step=0.1, inter=[0,10]):
     if isinstance(f, (tuple, list)):
         print('Functions')
     else:
@@ -69,38 +64,6 @@ def EulerInt(f, x=0,t=0, step=0.1, inter=[0,10]):
             
         return(tlist,xlist)
 
+
 if __name__ == '__main__':
-    
-    import numpy as np
-    import matplotlib.pyplot as plt
-    
-    step=0.0001   
-    V=0
-    t=0
-    f0= lambda t: 1-np.sin(t)/1
-    f= lambda t: 0.9*(1+np.cos(t)/1)
-    rho0=1.5
-    rho= lambda V: rho0+0.01*V
-    fp= lambda V, t: f0(t)*rho0-f(t)*rho(V)
-    
-    fp2= lambda V, t: f0(t)*rho0-2-f(t)*rho(V)+1
-    
-    x,y=RK4((fp, fp2), step=step)
-    
-    plt.Figure()
-    plt.subplot(121)
-    plt.plot(x,y[0])
-    plt.subplot(122)
-    plt.plot(x,y[1])
-    plt.show()
-    
-    '''
-    x,y=EulerInt(fp, step=step)
-    
-    plt.subplot(122)
-    plt.plot(x,y)
-    plt.show()
-    '''
-    
-    
-   
+    pass
