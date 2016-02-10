@@ -10,7 +10,8 @@ import numpy as np
 import random as rnd
 import matplotlib.pyplot as plt
 ###############################################################################
-def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0,tipo=None):
+def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0,tipo=None,seed=None,sin_pert=False):
+    rnd.seed(seed);np.random.seed(seed)
     '''
     Generador aleatorio de funciones tipo perturbaciones en un rango (inicio,fin)
     '''
@@ -30,6 +31,12 @@ def Perturbaciones(rango,dt=0.01,n_perts=50,plot=0,tipo=None):
     perts=list()
     for i in range(n_perts):
         L_p=np.copy(L)
+        if sin_pert and rnd.random()>0.8:
+            perts.append(L_p)
+            if plot==1:
+                plt.plot(L_p)
+                plt.show()
+            continue
         proporcion=rnd.random() #Proporcion de la perturbacion
         prop_inicio=rnd.random() #lugar del inicio de la perturbacion
         prop_magnitud=rnd.random() #proporcion de la magnitud
@@ -91,8 +98,8 @@ def Perturbar(pert=None,Lvar0=None,inter=(0,1),dt=0.01):
 def norm(a,maxmin=None):
     arr=np.copy(a)
     if not maxmin:
-        minimo=np.min(arr)[0]
-        maximo=np.max(arr)[0]
+        minimo=np.min(arr)
+        maximo=np.max(arr)
         return((arr-minimo)/(maximo-minimo),(maximo,minimo))
     else:
         maximo=maxmin[0];minimo=maxmin[1]
