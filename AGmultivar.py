@@ -7,12 +7,14 @@ Created on Thu Oct  8 21:25:04 2015
 Algorítmo Genético con variables múltiples
 """
 
+import time
 from math import log
 import random as rnd
 from binstr import b_bin_to_gray, b_gray_to_bin
-import multiprocessing as mp
-from functools import partial
-
+try:
+    import pp
+except:
+    print 'Sin la capacidad de usar paralelización. Instalar módulo de ParallelPython'
 
 class AG(object):
     
@@ -27,7 +29,8 @@ class AG(object):
         self.Ngen=100 # Número de generaciones por default
         self.prop_cruz=0.3 # Proporción de cruzamiento entre parejas por default
         self.prob_mut=0.05 # Probabilidad de mutación de un individuo por default
-        self.elit=1 # Probabilidad de ser elitista (1 es elitismo total)
+        self.elit=1 # 1-Con elitismo ; 2-Sin elitismo
+        self.resultados_fitness=list()        
         
         self.hist_mej=[[],[],[]] ## Variable para guardar la historia del mejor individuo [Generación, Fitness, x]
             
@@ -53,7 +56,7 @@ class AG(object):
     	return(dec)
         
         
-    def parametros(self, pres=None, Nind=None, Ngen=None, prop_cruz=None, prob_mut=None, elit=1, optim=0, tipo_cruz='2p', pruebas=1, multi=None):
+    def parametros(self, pres=None, Nind=None, Ngen=None, prop_cruz=None, prob_mut=None, elit=1, optim=0, tipo_cruz='2p', pruebas=1, cores=None):
         if pres:
             self.dxmax=pres
         if Nind:
@@ -71,7 +74,11 @@ class AG(object):
             self.max=False
             if self.deb:print 'Configurado para buscar el valor mínimo' 
         
-        self.multi=multi
+        self.cores=cores
+
+        if cores:
+            self.servidor=pp.Server(cores)
+        
         self.tipo_cruz=tipo_cruz
         self.elit=elit
         self.pruebas=pruebas
@@ -108,14 +115,26 @@ class AG(object):
             
 
     def fitnes(self, pob):
-        result=list()
-        for ind in pob:
-            ##Se utiliza la función objetivo para calcular el fitness
-            fit_ind=self.f_obj(self.decodificado(ind),self.datos)
-            result.append([fit_ind,ind])
-        result.sort(reverse=self.max)
-        #print result
-        return(result)
+        resultados_fitness=list()
+        if not self.cores:
+            for ind in pob:
+                ##Se utiliza la función objetivo para calcular el fitness
+                fit_ind=self.f_obj(self.decodificado(ind),self.datos)
+                resultados_fitness.append([fit_ind,ind])
+        else:
+            tareas=[(ind,
+                    self.servidor.submit(self.f_obj,
+                                        args=(self.decodificado(ind),self.datos),
+                                         modules=('numpy',
+                                                 'numericos',
+                                                 'matplotlib'))
+                    ) for ind in pob]
+            
+            for ind,tarea in tareas:
+                resultados_fitness.append([tarea(),ind])
+
+        resultados_fitness.sort(reverse=self.max)
+        return(resultados_fitness)
 
     def crearPob(self,N_ind=None, d_max=None):
         pob=[]
@@ -243,6 +262,8 @@ class AG(object):
             if self.deb: print '\nPrueba ',p+1
                 
             for gen in range(self.Ngen):
+                
+                #if self.deb and gen%int(self.Ngen*.1)==1:print 'Generacion:{}'.format(gen)
                 ##Se hace una prueba de rigidez, para ver si ha avanzado el algoritmo
                 if gen%int(self.Ngen*.3)==1:
                     if optimxgen and optimxgen==mejor[1]:
@@ -256,18 +277,15 @@ class AG(object):
                 #print("\nCruzamiento")
                 sel=self.seleccion(fit)
                 ## Cruzamiento!!!!!!!!!!!!!!!!!!!!
-                if not self.multi:
-                    pob1=self.cruzamiento(self.tipo_cruz,sel)
-                else:
-                    cruz=partial(self.cruzamiento,self.tipo_cruz)
-                    
-                            
+                pob1=self.cruzamiento(self.tipo_cruz,sel)
+        
                 ##Mutación!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!            
                 pob_mut=self.mutacion(pob1)
 
                 ##se vuelve a probar la nueva población
+                t1=time.time()
                 fit1=self.fitnes(pob_mut)
-
+                if self.deb and gen%int(self.Ngen*.1)==1:print 'Tiempo para fitness por gen {:.4e}'.format(time.time()-t1)
                 ### Elitismo !!!!!!!!!!!!!!!!!!!!!
                 fit=self.elitismo(fit, fit1)
 
@@ -295,12 +313,15 @@ if __name__=='__main__':
     plt.plot(x,f(x,1))
 
     ag=AG()
-    ag.parametros(Nind=20,Ngen=100,optim=0)
-    ag.variables(comun=[1,-3,1])
-    f=lambda x,y:x[0]**2+3*x[0]
+    ag.parametros(Nind=20,Ngen=100,optim=0,procesos='autodetect')
+    ag.variables(comun=[1,-100,100])
+    def f(x,y):
+        return x[0]**2+3*x[0]
     
     ag.Fobj(f)
+    t1=time.time()
     res=ag.start()
+    print 'Tiempo de cómputo {:.4e}'.format(time.time()-t1)
     print res[0][0]
 
-    plt.show()
+    #plt.show()
